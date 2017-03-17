@@ -1,14 +1,9 @@
-import math
-import os
-import sys
-
 import torch
 import torch.nn.functional as F
 import torch.optim as optim
-from envs import create_atari_env
-from model import ActorCritic
+import gym
+from a3c_model import ActorCritic
 from torch.autograd import Variable
-from torchvision import datasets, transforms
 
 
 def ensure_shared_grads(model, shared_model):
@@ -18,13 +13,13 @@ def ensure_shared_grads(model, shared_model):
         shared_param._grad = param.grad
 
 
-def train(rank, args, shared_model):
+def train(rank, args, shared_model, dtype):
     torch.manual_seed(args.seed + rank)
 
-    env = create_atari_env(args.env_name)
+    env = gym.make(args.env_name)
     env.seed(args.seed + rank)
 
-    model = ActorCritic(env.observation_space.shape[0], env.action_space)
+    model = ActorCritic(env.observation_space.shape[0], env.action_space).type(dtype)
 
     optimizer = optim.Adam(shared_model.parameters(), lr=args.lr)
 
@@ -34,7 +29,7 @@ def train(rank, args, shared_model):
     log_probs = []
 
     state = env.reset()
-    state = torch.from_numpy(state)
+    state = torch.from_numpy(state).type(dtype)
     done = True
 
     episode_length = 0
@@ -43,11 +38,11 @@ def train(rank, args, shared_model):
         # Sync with the shared model
         model.load_state_dict(shared_model.state_dict())
         if done:
-            cx = Variable(torch.zeros(1, 256))
-            hx = Variable(torch.zeros(1, 256))
+            cx = Variable(torch.zeros(1, 256).type(dtype))
+            hx = Variable(torch.zeros(1, 256).type(dtype))
         else:
-            cx = Variable(cx.data)
-            hx = Variable(hx.data)
+            cx = Variable(cx.data.type(dtype))
+            hx = Variable(hx.data.type(dtype))
 
         values = []
         log_probs = []
@@ -65,15 +60,14 @@ def train(rank, args, shared_model):
             action = prob.multinomial().data
             log_prob = log_prob.gather(1, Variable(action))
 
-            state, reward, done, _ = env.step(action.numpy())
+            state, reward, done, _ = env.step(action.cpu().numpy())
             done = done or episode_length >= args.max_episode_length
-            reward = max(min(reward, 1), -1)
 
             if done:
                 episode_length = 0
                 state = env.reset()
 
-            state = torch.from_numpy(state)
+            state = torch.from_numpy(state).type(dtype)
             values.append(value)
             log_probs.append(log_prob)
             rewards.append(reward)
@@ -81,7 +75,7 @@ def train(rank, args, shared_model):
             if done:
                 break
 
-        R = torch.zeros(1, 1)
+        R = torch.zeros(1, 1).type(dtype)
         if not done:
             value, _, _ = model((Variable(state.unsqueeze(0)), (hx, cx)))
             R = value.data
@@ -90,7 +84,7 @@ def train(rank, args, shared_model):
         policy_loss = 0
         value_loss = 0
         R = Variable(R)
-        gae = torch.zeros(1, 1)
+        gae = torch.zeros(1, 1).type(dtype)
         for i in reversed(range(len(rewards))):
             R = args.gamma * R + rewards[i]
             advantage = R - values[i]

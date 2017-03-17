@@ -1,17 +1,15 @@
-from __future__ import print_function
-
 import argparse
-import os
-import sys
 
 import torch
-import torch.multiprocessing as mp
+import torch.multiprocessing as _mp
+mp = _mp.get_context('spawn')
+
 import torch.nn as nn
 import torch.nn.functional as F
-from envs import create_atari_env
-from model import ActorCritic
-from train import train
-from test import test
+import gym
+from a3c_model import ActorCritic
+from a3c_train import train
+from a3c_test import test
 # Based on
 # https://github.com/pytorch/examples/tree/master/mnist_hogwild
 # Training settings
@@ -26,11 +24,11 @@ parser.add_argument('--seed', type=int, default=1, metavar='S',
                     help='random seed (default: 1)')
 parser.add_argument('--num-processes', type=int, default=4, metavar='N',
                     help='how many training processes to use (default: 4)')
-parser.add_argument('--num-steps', type=int, default=20, metavar='NS',
+parser.add_argument('--num-steps', type=int, default=30, metavar='NS',
                     help='number of forward steps in A3C (default: 20)')
 parser.add_argument('--max-episode-length', type=int, default=10000, metavar='M',
                     help='maximum length of an episode (default: 10000)')
-parser.add_argument('--env-name', default='PongDeterministic-v3', metavar='ENV',
+parser.add_argument('--env-name', default='Breakout-ram-v0', metavar='ENV',
                     help='environment to train on (default: PongDeterministic-v3)')
 
 
@@ -39,19 +37,23 @@ if __name__ == '__main__':
 
     torch.manual_seed(args.seed)
 
-    env = create_atari_env(args.env_name)
+    dtype = torch.cuda.FloatTensor if torch.cuda.is_available() else torch.FloatTensor
+
+    env = gym.make(args.env_name)
+
     shared_model = ActorCritic(
-        env.observation_space.shape[0], env.action_space)
+        env.observation_space.shape[0], env.action_space).type(dtype)
     shared_model.share_memory()
 
+    # train(1,args,shared_model,dtype)
     processes = []
 
-    p = mp.Process(target=test, args=(args.num_processes, args, shared_model))
+    p = mp.Process(target=test, args=(args.num_processes, args, shared_model, dtype))
     p.start()
     processes.append(p)
 
     for rank in range(0, args.num_processes):
-        p = mp.Process(target=train, args=(rank, args, shared_model))
+        p = mp.Process(target=train, args=(rank, args, shared_model, dtype))
         p.start()
         processes.append(p)
     for p in processes:
