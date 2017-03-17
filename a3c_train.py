@@ -1,9 +1,9 @@
 import torch
 import torch.nn.functional as F
 import torch.optim as optim
-import gym
-from a3c_model import ActorCritic
 from torch.autograd import Variable
+from a3c_model import ActorCritic
+from a3c_envs import create_atari_env
 
 
 def ensure_shared_grads(model, shared_model):
@@ -16,10 +16,11 @@ def ensure_shared_grads(model, shared_model):
 def train(rank, args, shared_model, dtype):
     torch.manual_seed(args.seed + rank)
 
-    env = gym.make(args.env_name)
+    env = create_atari_env(args.env_name)
     env.seed(args.seed + rank)
-
-    model = ActorCritic(env.observation_space.shape[0], env.action_space).type(dtype)
+    state = env.reset()
+    
+    model = ActorCritic(state.shape[0], env.action_space).type(dtype)
 
     optimizer = optim.Adam(shared_model.parameters(), lr=args.lr)
 
@@ -28,7 +29,6 @@ def train(rank, args, shared_model, dtype):
     values = []
     log_probs = []
 
-    state = env.reset()
     state = torch.from_numpy(state).type(dtype)
     done = True
 

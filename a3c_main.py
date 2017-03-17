@@ -10,6 +10,8 @@ import gym
 from a3c_model import ActorCritic
 from a3c_train import train
 from a3c_test import test
+from a3c_envs import create_atari_env
+
 # Based on
 # https://github.com/pytorch/examples/tree/master/mnist_hogwild
 # Training settings
@@ -30,6 +32,8 @@ parser.add_argument('--max-episode-length', type=int, default=10000, metavar='M'
                     help='maximum length of an episode (default: 10000)')
 parser.add_argument('--env-name', default='Breakout-ram-v0', metavar='ENV',
                     help='environment to train on (default: PongDeterministic-v3)')
+parser.add_argument('--fname', default='a3c_model', metavar='FN',
+                    help='path/prefix for the filename of the shared model\'s parameters')
 
 
 if __name__ == '__main__':
@@ -39,10 +43,9 @@ if __name__ == '__main__':
 
     dtype = torch.cuda.FloatTensor if torch.cuda.is_available() else torch.FloatTensor
 
-    env = gym.make(args.env_name)
-
-    shared_model = ActorCritic(
-        env.observation_space.shape[0], env.action_space).type(dtype)
+    env = create_atari_env(args.env_name)
+    state = env.reset()
+    shared_model = ActorCritic(state.shape[0], env.action_space).type(dtype)
     shared_model.share_memory()
 
     # train(1,args,shared_model,dtype)
