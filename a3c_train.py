@@ -96,7 +96,7 @@ def train(rank, args, shared_model, dtype):
             gae = gae * args.gamma * args.tau + delta_t
 
             policy_loss = policy_loss - \
-                log_probs[i] * Variable(gae) - 0.01 * entropies[i]
+                log_probs[i] * Variable(gae) - args.beta * entropies[i]
 
         optimizer.zero_grad()
 

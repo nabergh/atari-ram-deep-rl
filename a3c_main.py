@@ -1,4 +1,5 @@
 import argparse
+import pickle
 
 import torch
 import torch.multiprocessing as _mp
@@ -22,19 +23,22 @@ parser.add_argument('--gamma', type=float, default=0.99, metavar='G',
                     help='discount factor for rewards (default: 0.99)')
 parser.add_argument('--tau', type=float, default=1.00, metavar='T',
                     help='parameter for GAE (default: 1.00)')
+parser.add_argument('--beta', type=float, default=0.01, metavar='B',
+                    help='parameter for entropy (default: 0.01)')
 parser.add_argument('--seed', type=int, default=1, metavar='S',
                     help='random seed (default: 1)')
 parser.add_argument('--num-processes', type=int, default=4, metavar='N',
                     help='how many training processes to use (default: 4)')
-parser.add_argument('--num-steps', type=int, default=30, metavar='NS',
+parser.add_argument('--num-steps', type=int, default=20, metavar='NS',
                     help='number of forward steps in A3C (default: 20)')
 parser.add_argument('--max-episode-length', type=int, default=10000, metavar='M',
                     help='maximum length of an episode (default: 10000)')
 parser.add_argument('--env-name', default='Breakout-ram-v0', metavar='ENV',
-                    help='environment to train on (default: PongDeterministic-v3)')
-parser.add_argument('--fname', default='a3c_model', metavar='FN',
-                    help='path/prefix for the filename of the shared model\'s parameters')
-
+                    help='environment to train on (default: Breakout-ram-v0)')
+parser.add_argument('--save-name', default='a3c_model', metavar='FN',
+                    help='path/prefix for the filename to save shared model\'s parameters')
+parser.add_argument('--load-name', default=None, metavar='SN',
+                    help='path/prefix for the filename to load shared model\'s parameters')
 
 if __name__ == '__main__':
     args = parser.parse_args()
@@ -46,6 +50,8 @@ if __name__ == '__main__':
     env = create_atari_env(args.env_name)
     state = env.reset()
     shared_model = ActorCritic(state.shape[0], env.action_space).type(dtype)
+    if args.load_name is not None:
+        shared_model.load_state_dict(pickle.load(open(args.load_name + '.p', 'rb')))
     shared_model.share_memory()
 
     # train(1,args,shared_model,dtype)

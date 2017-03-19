@@ -1,14 +1,16 @@
+import time
+import pickle
+
 import torch
 import torch.nn.functional as F
 import torch.optim as optim
 from torch.autograd import Variable
-import time
 from collections import deque
 from a3c_model import ActorCritic
 from a3c_envs import create_atari_env
 
-test_ctr = 0
 def test(rank, args, shared_model, dtype):
+    test_ctr = 0
     torch.manual_seed(args.seed + rank)
 
     env = create_atari_env(args.env_name)
@@ -65,7 +67,7 @@ def test(rank, args, shared_model, dtype):
             state = env.reset()
             test_ctr += 1
             if test_ctr % 10 == 0:
-                torch.save(shared_model.state_dict(), args.fname + '.hd5')
+                pickle.dump(shared_model.state_dict(), open(args.save_name + '.p', 'wb'))
             time.sleep(60)
 
         state = torch.from_numpy(state).type(dtype)
