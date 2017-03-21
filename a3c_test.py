@@ -27,6 +27,7 @@ def test(rank, args, shared_model, dtype):
     state = torch.from_numpy(state).type(dtype)
     reward_sum = 0
     done = True
+    stuck = False
 
     start_time = time.time()
 
