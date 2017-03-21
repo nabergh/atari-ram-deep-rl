@@ -99,6 +99,8 @@ def test(rank, args, shared_model, dtype):
             if not args.evaluate:
                 time.sleep(60)
             elif test_ctr == evaluation_episodes:
+                # Ensure the environment is closed so we can complete the submission
+                env.close()
                 gym.upload('monitor/' + run_name, api_key=api_key)
 
         state = torch.from_numpy(state).type(dtype)
