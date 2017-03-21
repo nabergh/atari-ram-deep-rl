@@ -4,3 +4,4 @@ __pycache__
 *.pyc
 *.hd5
 *.p
+monitor/*

@@ -2,14 +2,17 @@
 
 import numpy as np
 import gym
+from gym import wrappers
 from universe import vectorized
 from universe.wrappers import Unvectorize, Vectorize
 
-def create_atari_env(env_name):
+def create_atari_env(env_name, evaluate=False, run_name=None):
 	env = gym.make(env_name)
 	env = Vectorize(env)
 	env = Bitwise(env)
 	env = Unvectorize(env)
+	if evaluate:
+		env = wrappers.Monitor(env, 'monitor/' + run_name)
 	return env
 
 # a not so pretty way to turn bytes into bits

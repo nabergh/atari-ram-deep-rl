@@ -39,6 +39,8 @@ parser.add_argument('--save-name', default='a3c_model', metavar='FN',
                     help='path/prefix for the filename to save shared model\'s parameters')
 parser.add_argument('--load-name', default=None, metavar='SN',
                     help='path/prefix for the filename to load shared model\'s parameters')
+parser.add_argument('--evaluate', action="store_true",
+                    help='whether to evaluate results and upload to gym')
 
 if __name__ == '__main__':
     args = parser.parse_args()
@@ -61,9 +63,10 @@ if __name__ == '__main__':
     p.start()
     processes.append(p)
 
-    for rank in range(0, args.num_processes):
-        p = mp.Process(target=train, args=(rank, args, shared_model, dtype))
-        p.start()
-        processes.append(p)
+    if not args.evaluate:
+        for rank in range(0, args.num_processes):
+            p = mp.Process(target=train, args=(rank, args, shared_model, dtype))
+            p.start()
+            processes.append(p)
     for p in processes:
         p.join()

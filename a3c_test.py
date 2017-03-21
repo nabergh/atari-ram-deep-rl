@@ -1,6 +1,7 @@
 import time
 import pickle
 from datetime import date
+import json
 
 import torch
 import torch.nn.functional as F
@@ -10,13 +11,26 @@ from collections import deque
 from a3c_model import ActorCritic
 from a3c_envs import create_atari_env
 
+import gym
+
 from tensorboard_logger import configure, log_value
+
+api_key = ''
+with open('api_key.json', 'r+') as api_file:
+    api_key = json.load(api_file)['api_key']
+
+evaluation_episodes = 100
 
 def test(rank, args, shared_model, dtype):
     test_ctr = 0
     torch.manual_seed(args.seed + rank)
 
-    env = create_atari_env(args.env_name)
+    #set up logger
+    timestring = str(date.today()) + '_' + time.strftime("%Hh-%Mm-%Ss", time.localtime(time.time()))
+    run_name = args.save_name + '_' + timestring
+    configure("logs/run_" + run_name, flush_secs=5)
+
+    env = create_atari_env(args.env_name, args.evaluate, run_name)
     env.seed(args.seed + rank)
     state = env.reset()
 
@@ -31,9 +45,6 @@ def test(rank, args, shared_model, dtype):
 
     start_time = time.time()
 
-    #set up logger
-    timestring = str(date.today()) + '_' + time.strftime("%Hh-%Mm-%Ss", time.localtime(time.time()))
-    configure("logs/run_" + args.save_name + '_' + timestring, flush_secs=5)
 
     # a quick hack to prevent the agent from stucking
     actions = deque(maxlen=200)
@@ -60,7 +71,7 @@ def test(rank, args, shared_model, dtype):
 
         # a quick hack to prevent the agent from stucking
         actions.append(action[0, 0])
-        if actions.count(actions[0]) == actions.maxlen:
+        if actions.count(actions[0]) == actions.maxlen and not args.evaluate:
             print("Agent stuck doing action " + str(actions[0]))
             stuck = True
             done = True
@@ -71,7 +82,7 @@ def test(rank, args, shared_model, dtype):
                               time.gmtime(time.time() - start_time)),
                 reward_sum, episode_length))
 
-            if not stuck:
+            if not stuck or args.evaluate:
                 log_value('Reward', reward_sum, test_ctr)
                 log_value('Episode length', episode_length, test_ctr)
 
@@ -82,8 +93,12 @@ def test(rank, args, shared_model, dtype):
             state = env.reset()
             test_ctr += 1
 
-            if test_ctr % 10 == 0:
+            if test_ctr % 10 == 0 and not args.evaluate:
                 pickle.dump(shared_model.state_dict(), open(args.save_name + '.p', 'wb'))
-            time.sleep(60)
+            
+            if not args.evaluate:
+                time.sleep(60)
+            elif test_ctr == evaluation_episodes:
+                gym.upload('monitor/' + run_name, api_key=api_key)
 
         state = torch.from_numpy(state).type(dtype)
