@@ -1,5 +1,6 @@
 import time
 import pickle
+from datetime import date
 
 import torch
 import torch.nn.functional as F
@@ -8,6 +9,8 @@ from torch.autograd import Variable
 from collections import deque
 from a3c_model import ActorCritic
 from a3c_envs import create_atari_env
+
+from tensorboard_logger import configure, log_value
 
 def test(rank, args, shared_model, dtype):
     test_ctr = 0
@@ -26,6 +29,10 @@ def test(rank, args, shared_model, dtype):
     done = True
 
     start_time = time.time()
+
+    #set up logger
+    timestring = str(date.today()) + '_' + time.strftime("%Hh-%Mm-%Ss", time.localtime(time.time()))
+    configure("logs/run_" + args.save_name + '_' + timestring, flush_secs=5)
 
     # a quick hack to prevent the agent from stucking
     actions = deque(maxlen=200)
@@ -54,6 +61,7 @@ def test(rank, args, shared_model, dtype):
         actions.append(action[0, 0])
         if actions.count(actions[0]) == actions.maxlen:
             print("Agent stuck doing action " + str(actions[0]))
+            stuck = True
             done = True
 
         if done:
@@ -61,11 +69,18 @@ def test(rank, args, shared_model, dtype):
                 time.strftime("%Hh %Mm %Ss",
                               time.gmtime(time.time() - start_time)),
                 reward_sum, episode_length))
+
+            if not stuck:
+                log_value('Reward', reward_sum, test_ctr)
+                log_value('Episode length', episode_length, test_ctr)
+
             reward_sum = 0
             episode_length = 0
+            stuck = False
             actions.clear()
             state = env.reset()
             test_ctr += 1
+
             if test_ctr % 10 == 0:
                 pickle.dump(shared_model.state_dict(), open(args.save_name + '.p', 'wb'))
             time.sleep(60)
