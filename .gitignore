@@ -5,3 +5,4 @@ __pycache__
 *.hd5
 *.p
 monitor/*
+api_key.json
