@@ -40,6 +40,7 @@ def test(rank, args, shared_model, dtype):
 
     state = torch.from_numpy(state).type(dtype)
     reward_sum = 0
+    max_reward = -99999999
     done = True
     stuck = False
 
@@ -86,6 +87,10 @@ def test(rank, args, shared_model, dtype):
                 log_value('Reward', reward_sum, test_ctr)
                 log_value('Episode length', episode_length, test_ctr)
 
+            if reward_sum >= max_reward:
+                pickle.dump(shared_model.state_dict(), open(args.save_name + '_max' + '.p', 'wb'))
+                max_reward = reward_sum
+                
             reward_sum = 0
             episode_length = 0
             stuck = False
