@@ -6,3 +6,4 @@ __pycache__
 *.p
 monitor/*
 api_key.json
+*.dat
