@@ -4,6 +4,7 @@ from itertools import count
 import cma
 from datetime import date
 import time
+import pickle
 
 import torch
 import torch.nn as nn
@@ -32,18 +33,33 @@ def weights_init(m):
 class DQN(nn.Module):
     def __init__(self, state_space, action_space):
         super(DQN, self).__init__()
-        self.l1 = nn.Linear(state_space, 32)
-        self.l2 = nn.Linear(32, 16)
-        self.l3 = nn.Linear(16, 8)
-        self.l4 = nn.Linear(8, action_space.n)
+        self.l1 = nn.Linear(state_space, 16)
+        self.l2 = nn.Linear(16, 8)
+        self.l3 = nn.Linear(8, action_space.n)
         self.apply(weights_init)
         self.train()
     
     def forward(self, x):
         x = F.relu(self.l1(x))
         x = F.relu(self.l2(x))
-        x = F.relu(self.l3(x))
-        return self.l4(x)
+        # x = F.relu(self.l3(x))
+        return self.l3(x)
+
+class ActorCritic(torch.nn.Module):
+    def __init__(self, num_inputs, action_space):
+        super(ActorCritic, self).__init__()
+        self.linear1 = nn.Linear(num_inputs, 32)
+        self.lstm = nn.LSTMCell(32, 32)
+        self.actor_linear = nn.Linear(32, action_space.n)
+
+        self.train()
+
+    def forward(self, inputs):
+        inputs, (hx, cx) = inputs
+        x = F.elu(self.linear1(inputs))
+        hx, cx = self.lstm(x, (hx, cx))
+        x = hx
+        return self.actor_linear(x), (hx, cx)
 
 
 
@@ -60,12 +76,14 @@ def state_dict_to_np():
 
 def min_function(params):
     model.load_state_dict(np_to_state_dict(params))
-    
+    cx = Variable(torch.zeros(1, 32).type(dtype), volatile = True)
+    hx = Variable(torch.zeros(1, 32).type(dtype), volatile = True)
     state = torch.from_numpy(env.reset()).type(dtype)
     total_reward = 0
     
     for t in count():
-        action = np.argmax(model(Variable(state.unsqueeze(0), volatile = True)).data.cpu().numpy())
+        action_probs, (hx, cx) = model((Variable(state.unsqueeze(0), volatile = True), (hx, cx)))
+        action = np.argmax(action_probs.data.cpu().numpy())
         next_state, reward, done, _ = env.step(action)
         next_state = torch.from_numpy(next_state).type(dtype)
         
@@ -77,6 +95,8 @@ def min_function(params):
             min_function.ctr += 1
             log_value('Reward', total_reward, min_function.ctr)
             log_value('Episode length', t, min_function.ctr)
+            if min_function.ctr % 50 == 0:
+                pickle.dump(model.state_dict(), open('qbert_evolution' + '.p', 'wb'))
             return -total_reward
 min_function.ctr = 0
 
