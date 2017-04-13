@@ -77,9 +77,11 @@ def train(rank, args, reward_queues, dtype):
 
         curr_seed = curr_seed + args.num_processes
 
+        # logs average reward and maximum reward for the training step
         if rank == 0:
-            log_value('Average Reward', total_reward / args.num_processes, step)
+            log_value('Reward', total_reward / args.num_processes, step)
             log_value('Maximum Reward', max_reward, step)
 
+        # save weights of model
         if rank == 1 and step % 80 == 0:
             pickle.dump(model.state_dict(), open(args.save_name + '.p', 'wb'))
