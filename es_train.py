@@ -75,7 +75,6 @@ def train(rank, args, reward_queues, dtype):
         # adjust for learning rate, number of processes and standard deviation
         perturbs = perturbs * args.lr / (args.sigma * args.num_processes)
         model.set_weights_np(params + perturbs)
-
         curr_seed = curr_seed + args.num_processes
 
         # logs average reward and maximum reward for the training step
