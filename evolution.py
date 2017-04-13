@@ -5,7 +5,6 @@ import cma
 from datetime import date
 import time
 import pickle
-
 import torch
 import torch.nn as nn
 import torch.autograd as autograd
@@ -16,7 +15,6 @@ from torch.autograd import Variable
 from a3c_envs import create_atari_env
 
 from tensorboard_logger import configure, log_value
-
 
 # dtype = torch.cuda.FloatTensor if torch.cuda.is_available() else torch.FloatTensor
 dtype = torch.FloatTensor

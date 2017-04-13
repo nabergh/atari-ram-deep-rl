@@ -7,7 +7,6 @@ import torch
 import torch.nn.functional as F
 import torch.optim as optim
 from torch.autograd import Variable
-from collections import deque
 from a3c_model import ActorCritic
 from a3c_envs import create_atari_env
 
@@ -42,13 +41,10 @@ def test(rank, args, shared_model, dtype):
     reward_sum = 0
     max_reward = -99999999
     done = True
-    stuck = False
 
     start_time = time.time()
 
 
-    # a quick hack to prevent the agent from stucking
-    actions = deque(maxlen=200)
     episode_length = 0
     while True:
         episode_length += 1
@@ -70,22 +66,15 @@ def test(rank, args, shared_model, dtype):
         done = done or episode_length >= args.max_episode_length
         reward_sum += reward
 
-        # a quick hack to prevent the agent from stucking
-        actions.append(action[0, 0])
-        if actions.count(actions[0]) == actions.maxlen and not args.evaluate:
-            print("Agent stuck doing action " + str(actions[0]))
-            stuck = True
-            done = True
-
         if done:
             print("Time {}, episode reward {}, episode length {}".format(
                 time.strftime("%Hh %Mm %Ss",
                               time.gmtime(time.time() - start_time)),
                 reward_sum, episode_length))
 
-            if not stuck or args.evaluate:
-                log_value('Reward', reward_sum, test_ctr)
-                log_value('Episode length', episode_length, test_ctr)
+            # if not stuck or args.evaluate:
+            log_value('Reward', reward_sum, test_ctr)
+            log_value('Episode length', episode_length, test_ctr)
 
             if reward_sum >= max_reward:
                 pickle.dump(shared_model.state_dict(), open(args.save_name + '_max' + '.p', 'wb'))
@@ -93,8 +82,6 @@ def test(rank, args, shared_model, dtype):
                 
             reward_sum = 0
             episode_length = 0
-            stuck = False
-            actions.clear()
             state = env.reset()
             test_ctr += 1
 

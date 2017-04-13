@@ -7,3 +7,4 @@ __pycache__
 monitor/*
 api_key.json
 *.dat
+models/
