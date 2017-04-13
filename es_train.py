@@ -15,13 +15,14 @@ from tensorboard_logger import configure, log_value
 
 def train(rank, args, reward_queues, dtype):
 
-    if rank is 0:
+    if rank == 0:
         timestring = str(date.today()) + '_' + time.strftime("%Hh-%Mm-%Ss", time.localtime(time.time()))
         run_name = args.save_name + '_' + timestring
         configure("logs/es_" + run_name, flush_secs=5)
 
+    torch.manual_seed(args.seed)
     curr_seed = args.seed
-    
+
     env = create_atari_env(args.env_name)
     env.seed(args.seed + rank)
     state = env.reset()

@@ -5,11 +5,11 @@ import torch.nn as nn
 import torch.nn.init as init
 import torch.nn.functional as F
 
-def weights_init(m):
-    classname = m.__class__.__name__
-    if classname.find('Linear') != -1:
-        init.xavier_uniform(m.weight.data)
-        m.bias.data.fill_(0)
+# def weights_init(m):
+#     classname = m.__class__.__name__
+#     if classname.find('Linear') != -1:
+#         init.xavier_uniform(m.weight.data)
+#         m.bias.data.fill_(0)
 
 
 class EvolutionNet(torch.nn.Module):
@@ -20,7 +20,7 @@ class EvolutionNet(torch.nn.Module):
         self.linear2 = nn.Linear(256, 256)
         self.linear3 = nn.Linear(256, 256)
         self.linear4 = nn.Linear(256, action_space.n)
-        self.apply(weights_init)
+        # self.apply(weights_init)
 
         self.shapes = [tensor.numpy().shape for _,tensor in self.state_dict().items()]
 
