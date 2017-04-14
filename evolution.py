@@ -1,7 +1,7 @@
+import cma
 import gym
 import numpy as np
 from itertools import count
-import cma
 from datetime import date
 import time
 import pickle
@@ -19,14 +19,14 @@ from tensorboard_logger import configure, log_value
 # dtype = torch.cuda.FloatTensor if torch.cuda.is_available() else torch.FloatTensor
 dtype = torch.FloatTensor
 
-env = create_atari_env('Qbert-ram-v0')
+env = create_atari_env('Asteroids-ram-v0')
 state = env.reset()
 
-def weights_init(m):
-    classname = m.__class__.__name__
-    if classname.find('Linear') != -1:
-        init.xavier_uniform(m.weight.data)
-        m.bias.data.fill_(0)
+# def weights_init(m):
+#     classname = m.__class__.__name__
+#     if classname.find('Linear') != -1:
+#         init.xavier_uniform(m.weight.data)
+#         m.bias.data.fill_(0)
 
 class DQN(nn.Module):
     def __init__(self, state_space, action_space):
@@ -34,7 +34,7 @@ class DQN(nn.Module):
         self.l1 = nn.Linear(state_space, 16)
         self.l2 = nn.Linear(16, 8)
         self.l3 = nn.Linear(8, action_space.n)
-        self.apply(weights_init)
+        # self.apply(weights_init)
         self.train()
     
     def forward(self, x):
@@ -62,9 +62,12 @@ class ActorCritic(torch.nn.Module):
 
 
 def np_to_state_dict(params):
-    params = [params[1:1+np.prod(shape)].reshape(shape) for shape in shapes]
+    param_list = []
+    for shape in shapes:
+        param_list.append(params[:np.prod(shape)].reshape(shape))
+        params = params[np.prod(shape):]
     model_params = model.state_dict()
-    for model_param, param in zip(model.state_dict(), params):
+    for model_param, param in zip(model.state_dict(), param_list):
         model_params[model_param] = torch.from_numpy(param)
     return model_params
 
@@ -80,7 +83,7 @@ def min_function(params):
     total_reward = 0
     
     for t in count():
-        action_probs, (hx, cx) = model((Variable(state.unsqueeze(0), volatile = True), (hx, cx)))
+        action_probs = model(Variable(state.unsqueeze(0), volatile = True))
         action = np.argmax(action_probs.data.cpu().numpy())
         next_state, reward, done, _ = env.step(action)
         next_state = torch.from_numpy(next_state).type(dtype)
@@ -94,7 +97,7 @@ def min_function(params):
             log_value('Reward', total_reward, min_function.ctr)
             log_value('Episode length', t, min_function.ctr)
             if min_function.ctr % 50 == 0:
-                pickle.dump(model.state_dict(), open('qbert_evolution' + '.p', 'wb'))
+                pickle.dump(model.state_dict(), open('asteroids_cma' + '.p', 'wb'))
             return -total_reward
 min_function.ctr = 0
 
@@ -103,6 +106,6 @@ model.type(dtype)
 shapes = [tensor.numpy().shape for _,tensor in model.state_dict().items()]
 
 timestring = str(date.today()) + '_' + time.strftime("%Hh-%Mm-%Ss", time.localtime(time.time()))
-run_name = 'qbert_evolution' + '_' + timestring
-configure("logs/run_" + run_name, flush_secs=5)
+run_name = 'asteroids_cma' + '_' + timestring
+configure("logs/" + run_name, flush_secs=5)
 cma.fmin(min_function, state_dict_to_np(), 1.0, {"maxfevals": 1e4, "tolx": 0, "tolfun": 0, "tolfunhist": 0, 'CMA_diagonal': True})
