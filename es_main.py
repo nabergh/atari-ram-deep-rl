@@ -10,11 +10,8 @@ import torch.nn as nn
 import torch.nn.functional as F
 import gym
 from es_train import train
-# from a3c_test import test
-# from a3c_envs import create_atari_env
+from es_test import test
 
-# Based on
-# https://github.com/pytorch/examples/tree/master/mnist_hogwild
 # Training settings
 parser = argparse.ArgumentParser(description='A3C')
 parser.add_argument('--lr', type=float, default=0.0001, metavar='LR',
@@ -33,8 +30,14 @@ parser.add_argument('--save-name', default='es_model', metavar='FN',
                     help='path/prefix for the filename to save shared model\'s parameters')
 parser.add_argument('--load-name', default=None, metavar='SN',
                     help='path/prefix for the filename to load shared model\'s parameters')
+parser.add_argument('--monitor', action="store_true",
+                    help='whether to monitor testing (note: not for evalutation)')
 parser.add_argument('--evaluate', action="store_true",
-                    help='whether to evaluate results and upload to gym')
+                    help='whether to evaluate trained model')
+parser.add_argument('--evaluate-episodes', type=int, default=100, metavar='EE'
+                    help='number of episodes to evaluate')
+parser.add_argument('--upload', action="store_true",
+                    help='whether to upload results for trained model (--evaluate must be set)')
 
 if __name__ == '__main__':
     args = parser.parse_args()
@@ -53,5 +56,10 @@ if __name__ == '__main__':
             p = mp.Process(target=train, args=(rank, args, reward_queues, dtype))
             p.start()
             processes.append(p)
+    else:
+        p = mp.Process(target=test, args=(0, args, dtype))
+        p.start()
+        processes.append(p)
+
     for p in processes:
         p.join()

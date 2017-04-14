@@ -9,17 +9,19 @@ class EvolutionNet(torch.nn.Module):
 
     def __init__(self, num_inputs, action_space):
         super(EvolutionNet, self).__init__()
-        self.linear1 = nn.Linear(num_inputs, 16)
-        self.linear2 = nn.Linear(16, 8)
-        self.linear3 = nn.Linear(8, action_space.n)
+        self.linear1 = nn.Linear(num_inputs, 32)
+        self.linear2 = nn.Linear(32, 16)
+        self.linear3 = nn.Linear(16, 8)
+        self.linear4 = nn.Linear(8, action_space.n)
 
         self.shapes = [tensor.numpy().shape for _,tensor in self.state_dict().items()]
 
     def forward(self, inputs):
         x = F.tanh(self.linear1(inputs))
         x = F.tanh(self.linear2(x))
+        x = F.tanh(self.linear3(x))
 
-        return self.linear3(x)
+        return self.linear4(x)
 
     def set_weights_np(self, params):
         param_list = []

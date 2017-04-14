@@ -14,7 +14,7 @@ from a3c_envs import create_atari_env
 from tensorboard_logger import configure, log_value
 
 def train(rank, args, reward_queues, dtype):
-
+    run_name = ''
     if rank == 0:
         timestring = str(date.today()) + '_' + time.strftime("%Hh-%Mm-%Ss", time.localtime(time.time()))
         run_name = args.save_name + '_' + timestring
@@ -23,12 +23,18 @@ def train(rank, args, reward_queues, dtype):
     torch.manual_seed(args.seed)
     curr_seed = args.seed
 
-    env = create_atari_env(args.env_name)
+    if rank == 0:
+        env = create_atari_env(args.env_name, args.monitor, run_name)
+    else:
+        env = create_atari_env(args.env_name)
     env.seed(args.seed + rank)
     state = env.reset()
 
     model = EvolutionNet(state.shape[0], env.action_space).type(dtype)
     pert_model = EvolutionNet(state.shape[0], env.action_space).type(dtype)
+
+    if args.load_name is not None:
+        model.load_state_dict(pickle.load(open('models/' + args.load_name + '.p', 'rb')))
     
     for step in count():
         torch.manual_seed(curr_seed + rank)
@@ -68,6 +74,7 @@ def train(rank, args, reward_queues, dtype):
                 other_reward = reward_queues[n].get()
                 total_reward += other_reward
                 max_reward = max(max_reward, other_reward)
+
                 torch.manual_seed(curr_seed + n)
                 other_perturbs = torch.normal(torch.zeros(len(params)), torch.FloatTensor([args.sigma] * len(params))).numpy()
                 perturbs += other_perturbs * other_reward
@@ -84,4 +91,4 @@ def train(rank, args, reward_queues, dtype):
 
         # save weights of model
         if rank == 1 and step % 80 == 0:
-            pickle.dump(model.state_dict(), open(args.save_name + '.p', 'wb'))
+            pickle.dump(model.state_dict(), open('models/' + args.save_name + '.p', 'wb'))
