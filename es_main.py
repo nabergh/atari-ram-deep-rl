@@ -34,7 +34,7 @@ parser.add_argument('--monitor', action="store_true",
                     help='whether to monitor testing (note: not for evalutation)')
 parser.add_argument('--evaluate', action="store_true",
                     help='whether to evaluate trained model')
-parser.add_argument('--evaluate-episodes', type=int, default=100, metavar='EE'
+parser.add_argument('--evaluate-episodes', type=int, default=100, metavar='EE',
                     help='number of episodes to evaluate')
 parser.add_argument('--upload', action="store_true",
                     help='whether to upload results for trained model (--evaluate must be set)')
