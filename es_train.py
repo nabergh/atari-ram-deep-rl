@@ -31,6 +31,7 @@ def train(rank, args, reward_queues, dtype):
     state = env.reset()
 
     model = EvolutionNet(state.shape[0], env.action_space).type(dtype)
+    model0 = EvolutionNet(state.shape[0], env.action_space).type(dtype)
     pert_model = EvolutionNet(state.shape[0], env.action_space).type(dtype)
 
     if args.load_name is not None:
@@ -40,7 +41,10 @@ def train(rank, args, reward_queues, dtype):
         torch.manual_seed(curr_seed + rank)
 
         # create model with weights perturbed by N(0, 1) * args.sigma
-        params = model.get_weights_np()
+        if step > 10:
+            params = model.get_weights_np()
+        else:
+            params = model0.get_weights_np()
         perturbs = torch.normal(torch.zeros(len(params)), torch.FloatTensor([args.sigma] * len(params))).numpy()
         pert_model.set_weights_np(params + perturbs)
     

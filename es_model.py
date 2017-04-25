@@ -6,6 +6,13 @@ import torch.nn.init as init
 import torch.nn.functional as F
 from torch.autograd import Variable
 
+
+def weights_init(m):
+    classname = m.__class__.__name__
+    if classname.find('Linear') != -1:
+        m.bias.data.fill_(0)
+        m.weight.data.fill_(0)
+
 class EvolutionNet(torch.nn.Module):
 
     def __init__(self, num_inputs, action_space):
@@ -16,7 +23,8 @@ class EvolutionNet(torch.nn.Module):
         self.linear4 = nn.Linear(32, 16)
         self.linear5 = nn.Linear(16, 8)
         self.linear6 = nn.Linear(8, action_space.n)
-
+        self.apply(weights_init)
+        
         self.shapes = [tensor.numpy().shape for _,tensor in self.state_dict().items()]
 
     def forward(self, inputs):
